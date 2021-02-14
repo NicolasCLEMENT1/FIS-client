@@ -8,7 +8,7 @@ class LoginApi {
 
     static login(username, password) {
         const headers = this.requestHeaders();
-        const request = new Request("/auth/login", {
+        const request = new Request("/login", {
             method: 'POST',
             headers: headers,
             body: {
