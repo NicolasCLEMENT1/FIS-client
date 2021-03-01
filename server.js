@@ -22,7 +22,7 @@ app.get("/", (req, res) => {
     res.send("<html><body><h1>My clients server</h1></body></html>");
 });
 
-app.get(process.env.VERSION + "/clients/:username", (req, res) => {
+app.get(process.env.VERSION + "/clients/:username", authValidation, (req, res) => {
     console.log(Date() + " - GET /clients");
     Client.findOne({username: req.params.username}, (err,clients)=> {
         if(err){
@@ -34,7 +34,7 @@ app.get(process.env.VERSION + "/clients/:username", (req, res) => {
 
     });
 });
-app.get(process.env.VERSION + "/clients", (req, res) => {
+app.get(process.env.VERSION + "/clients", authValidation, (req, res) => {
     console.log(Date() + " - GET /clients");
     Client.find({}, (err,clients)=> {
         if(err){
@@ -49,7 +49,7 @@ app.get(process.env.VERSION + "/clients", (req, res) => {
     });
 });
 
-app.put(process.env.VERSION + "/clients/:username",(req,res)=>{
+app.put(process.env.VERSION + "/clients/:username", authValidation, (req,res)=>{
   console.log(Date() + " - PUT /clients/" + req.params.id);
   Client.updateOne({username: req.params.username}, {$set:{  
     firstName: req.body.firstName,
@@ -67,12 +67,12 @@ app.put(process.env.VERSION + "/clients/:username",(req,res)=>{
   });
 });
 
-app.delete(process.env.VERSION +"/clients/:username", async (req, res) => {
+app.delete(process.env.VERSION +"/clients/:username", authValidation, async (req, res) => {
   Client.remove({
     username : req.params.username
   }, function(err) {
     if (err)
-      res.send(err);
+      res.sendStatus(500);
     else
       res.send('Success! Client has been deleted.');	
     });
@@ -81,13 +81,11 @@ app.delete(process.env.VERSION +"/clients/:username", async (req, res) => {
 app.post(process.env.VERSION + '/register', async (req, res) => {
     // Validating data
 
-    const client = await Client.findOne({ username : req.body.username });
-    if(client) return res.status(400).send('There is a client with the same username');
-
+      
     const validation = registerValidation(req.body);
-
+    
     if(validation.error) return res.status(400).send(validation.error.details[0].message);
-
+    
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
@@ -102,10 +100,15 @@ app.post(process.env.VERSION + '/register', async (req, res) => {
         address: req.body.address
     });
 
-    newClient.save()
-    .then((savedClient) => res.json(savedClient))
-    .catch(err => res.status(400).json('Error registering: ' + err));
-    return res;
+
+    Client.create(newClient, (err) => {
+        if (err) {
+            console.log(Date() + " - " + err);
+            res.sendStatus(500);
+        } else {
+            res.sendStatus(201);
+        }
+    });
 });
 
 app.post(process.env.VERSION + '/login', async (req, res) => {
